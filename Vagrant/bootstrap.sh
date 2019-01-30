@@ -78,6 +78,8 @@ install_splunk() {
     /opt/splunk/bin/splunk install app /vagrant/resources/splunk_server/punchcard-custom-visualization_130.tgz  -auth 'admin:changeme'
     /opt/splunk/bin/splunk install app /vagrant/resources/splunk_server/sankey-diagram-custom-visualization_130.tgz  -auth 'admin:changeme'
     /opt/splunk/bin/splunk install app /vagrant/resources/splunk_server/threathunting_11.tgz  -auth 'admin:changeme'
+    # Add elasticsplunk
+    git clone https://github.com/brunotm/elasticsplunk /opt/splunk/etc/apps/elasticsplunk
     # Add custom Macro definitions for ThreatHunting App
     cp /vagrant/resources/splunk_server/macros.conf /opt/splunk/etc/apps/ThreatHunting/local
 
@@ -100,6 +102,24 @@ install_splunk() {
     /opt/splunk/bin/splunk enable boot-start
     # Generate the ASN lookup table
     /opt/splunk/bin/splunk search "|asngen | outputlookup asn" -auth 'admin:changeme'
+    # Load dashboards to allow pivot to Security Onion's CapMe
+    SECURITYONION_IP="192.168.38.106"
+    SPLUNK_IP="192.168.38.105"
+    SPLUNK_USER="admin"
+    SPLUNK_PASSWORD="changeme"
+    DASHBOARDS=$(ls /vagrant/resources/splunk_server/*.xml)
+    # Modify dashboards w/ Security Onion IP
+    for i in $DASHBOARDS; do
+      sed -i "s/SECURITYONION_IP/$SECURITYONION_IP/" $i
+    done
+    # Load dashboards
+    for i in $DASHBOARDS; do
+      NAME=$(echo $i | cut -d "/" -f4 | cut -d "." -f1)
+      DATA=$(cat $i)
+      echo "Loading $NAME dashboard to Splunk..."
+      curl -k -u $SPLUNK_USER:$SPLUNK_PASSWORD https://$SPLUNK_IP:8089/servicesNS/$SPLUNK_USER/search/data/ui/views -d "name=$NAME&eai:data=$DATA"
+    done
+    
   fi
 }
 

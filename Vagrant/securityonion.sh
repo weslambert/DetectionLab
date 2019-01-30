@@ -20,7 +20,24 @@ install_securityonion() {
     fi
     sed -i '1 s|^|# Added for Security Onion\n|' /etc/network/interfaces
     echo "yes" | sosetup -f /vagrant/resources/securityonion/sosetup.conf
+    # Add FW rule for analyst
     ufw allow proto tcp from 192.168.38.1 to any port 22,443,7734
+    echo -e "<!--Address 192.168.38.1 added by /usr/sbin/so-allow on "$DATE"-->\n  <global>\n    <white_list>192.168.38.1</white_list>\n  </global>\n</ossec_config>" >> /var/ossec/etc/ossec.conf
+    # Add FW rule for Splunk
+    SPLUNK_IP="192.168.38.105"
+    SPLUNK_RULE="sudo iptables -I DOCKER-USER ! -i docker0 -o docker0 -s $SPLUNK_IP -p tcp --dport 9200 -j ACCEPT"
+    sed -i "/so-allow/a $SPLUNK_RULE" /etc/ufw/after.rules
+    echo -e "<!--Address $SPLUNK_IP added by /usr/sbin/so-allow on "$DATE"-->\n  <global>\n    <white_list>$SPLUNK_IP</white_list>\n  </global>\n</ossec_config>" >> /var/ossec/etc/ossec.conf
+    # Enable external interfacing for ES
+    if grep 'ELASTICSEARCH_PUBLISH_IP="127.0.0.1"' $CONF; then
+      sed -i 's/ELASTICSEARCH_PUBLISH_IP=.*/ELASTICSEARCH_PUBLISH_IP="0.0.0.0"/' $CONF
+      echo "Changed ELASTICSEARCH_PUBLISH_HOST from 127.0.0.1 to 0.0.0.0 (/etc/nsm/securityonion.conf)."
+      echo
+      echo "Restarting Elasticsearch..."
+      so-elasticsearch-restart
+    else
+      :
+    fi
     echo "" | so-desktop-gnome
   fi
 }
