@@ -1,0 +1,25 @@
+<dashboard theme="dark">
+  <label>Bro - SSL</label>
+  <description>Bro ssl.log records from Security Onion</description>
+  <row>
+    <panel>
+      <table>
+        <search>
+          <query>|ess eaddr="SECURITYONION_IP:9200" index="logstash-bro-*" tsfield="@timestamp" query="event_type:bro_ssl" include_es=true | table es_id, source_ip,source_port,destination_ip,destination_port</query>
+          <earliest>@y</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="totalsRow">false</option>
+        <drilldown>
+          <condition field="es_id">
+            <set token="es_id">$click.value2$</set>
+            <link target="blank">https://SECURITYONION_IP/capme/elastic.php?esid=$es_id$</link>
+          </condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+</dashboard>
